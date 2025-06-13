@@ -3,109 +3,276 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detector de Nariz y Música Doria Mejorado con Depuración</title>
+    <title>Nariz Doria Midi</title>
+    <!-- Carga de librerías para IA y detección de pose -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet"></script>
+    <!-- Carga de una fuente moderna desde Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            /* Definición de paleta de colores para fácil personalización */
+            --bg-color: #121212;
+            --primary-text-color: #e0e0e0;
+            --secondary-text-color: #b3b3b3;
+            --accent-color: #1DB954;
+            --accent-color-hover: #1ed760;
+            --surface-color: #1e1e1e;
+            --border-color: #2c2c2c;
+            --highlight-color: rgba(29, 185, 84, 0.2);
+        }
+
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Inter', sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
-            background-color: #f0f0f0;
+            background-color: var(--bg-color);
+            color: var(--primary-text-color);
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
         }
-        h1 { color: #333; }
+
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            width: 100%;
+            max-width: 640px;
+        }
+
+        h1 {
+            color: var(--primary-text-color);
+            font-size: 2.5rem;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        h2 {
+            color: var(--secondary-text-color);
+            font-size: 1.2rem;
+            margin: -10px 0 10px 0;
+            font-weight: 400;
+        }
+
         #videoContainer {
             position: relative;
-            margin-bottom: 20px;
+            margin-bottom: 1rem;
+            width: 100%;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            border: 2px solid var(--border-color);
         }
+
         #video {
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: block;
+            width: 100%;
+            height: auto;
+            transform: scaleX(-1);
         }
+
         .overlay {
             position: absolute;
-            background-color: rgba(255, 255, 255, 0.7);
-            padding: 5px;
-            border-radius: 5px;
-            font-size: 14px;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(5px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
-        #output { top: 10px; left: 10px; }
-        #noteOutput { top: 10px; right: 10px; }
-        #debugOutput { 
-            bottom: 10px; 
-            left: 10px; 
-            max-height: 150px; 
-            overflow-y: auto; 
-            width: 300px;
-        }
+
+        #output { top: 15px; left: 15px; }
+        #noteOutput { top: 15px; right: 15px; }
+
         #status {
-            margin-top: 20px;
             font-weight: bold;
             text-align: center;
+            padding: 10px;
+            background-color: var(--surface-color);
+            border-radius: 8px;
+            width: 100%;
+            margin-top: 1rem;
         }
+        
+        #toggleButton {
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: bold;
+            color: #ffffff;
+            background-color: var(--accent-color);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+        #toggleButton:hover {
+            background-color: var(--accent-color-hover);
+        }
+        #toggleButton:active {
+            transform: scale(0.98);
+        }
+        #toggleButton.paused {
+             background-color: #535353;
+        }
+        #toggleButton.paused:hover {
+            background-color: #6a6a6a;
+        }
+
+
         .note-section {
             position: absolute;
             left: 0;
-            right: 0;
+            width: 100%;
             height: 20%;
-            border: 1px solid rgba(0, 0, 0, 0.2);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
             display: flex;
             align-items: center;
             justify-content: flex-end;
-            padding-right: 10px;
-            color: black;
+            padding-right: 20px;
+            color: var(--secondary-text-color);
             font-weight: bold;
-            transition: background-color 0.3s ease;
+            font-size: 1.2rem;
+            box-sizing: border-box;
+            transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-left 0.2s ease-in-out;
+            pointer-events: none;
+            border-left: 5px solid transparent;
         }
+        
+        #laSection { top: 0; border-top: none; }
+        #solSection { top: 20%; }
+        #faSection { top: 40%; }
+        #miSection { top: 60%; }
+        #reSection { top: 80%; }
+
+        .note-section.active {
+            background-color: var(--highlight-color);
+            color: var(--primary-text-color);
+            border-left: 5px solid var(--accent-color);
+        }
+
+        footer {
+            position: absolute;
+            bottom: 10px;
+            font-size: 0.8rem;
+            color: var(--secondary-text-color);
+        }
+
     </style>
 </head>
 <body>
-    <h1>Detector de Nariz y Música Doria Mejorado con Depuración</h1>
-    <div id="videoContainer">
-        <video id="video" width="640" height="480" autoplay></video>
-        <div id="output" class="overlay"></div>
-        <div id="noteOutput" class="overlay"></div>
-        <div id="debugOutput" class="overlay"></div>
-        <div id="laSection" class="note-section" style="top: 0;">La</div>
-        <div id="solSection" class="note-section" style="top: 20%;">Sol</div>
-        <div id="faSection" class="note-section" style="top: 40%;">Fa</div>
-        <div id="miSection" class="note-section" style="top: 60%;">Mi</div>
-        <div id="reSection" class="note-section" style="top: 80%;">Re</div>
+    <div class="main-container">
+        <h1>Nariz Doria Midi</h1>
+        <h2>Creado por Manuel Puebla Vega</h2>
+
+        <div id="videoContainer">
+            <video id="video" width="640" height="480" autoplay muted playsinline></video>
+            <!-- Capas de información y zonas de notas sobre el video -->
+            <div id="output" class="overlay"></div>
+            <div id="noteOutput" class="overlay"></div>
+            <div id="laSection" class="note-section">La</div>
+            <div id="solSection" class="note-section">Sol</div>
+            <div id="faSection" class="note-section">Fa</div>
+            <div id="miSection" class="note-section">Mi</div>
+            <div id="reSection" class="note-section">Re</div>
+        </div>
+        
+        <button id="toggleButton">Iniciar Detección</button>
+
+        <div id="status">Haz clic en "Iniciar Detección" para comenzar.</div>
     </div>
-    <div id="status">Cargando modelo...</div>
+
+    <footer>
+        Todos los derechos reservados. Brotes Musicales ® 2025
+    </footer>
 
     <script>
+        // Elementos del DOM
         const video = document.getElementById('video');
         const output = document.getElementById('output');
         const noteOutput = document.getElementById('noteOutput');
-        const debugOutput = document.getElementById('debugOutput');
         const status = document.getElementById('status');
-        const sections = ['laSection', 'solSection', 'faSection', 'miSection', 'reSection'];
-        
-        let model, midiAccess, midiOutput;
-        let currentNote = null;
-        let isDetecting = false;
-
-        const notes = {
-            'La': 69, 'Sol': 67, 'Fa': 65, 'Mi': 64, 'Re': 62
+        const toggleButton = document.getElementById('toggleButton');
+        const sectionElements = {
+            'La': document.getElementById('laSection'),
+            'Sol': document.getElementById('solSection'),
+            'Fa': document.getElementById('faSection'),
+            'Mi': document.getElementById('miSection'),
+            'Re': document.getElementById('reSection')
         };
 
+        // Variables de estado
+        let model, midiAccess, midiOutput;
+        let currentNoteMidi = null;
+        let isDetecting = false; // La detección empieza pausada
+        let isInitialized = false;
+
+        // Mapeo de notas
+        const notes = { 'Re': 62, 'Mi': 64, 'Fa': 65, 'Sol': 67, 'La': 69 };
+        const noteNameByMidi = { 62: 'Re', 64: 'Mi', 65: 'Fa', 67: 'Sol', 69: 'La' };
+        const noteOrder = ['La', 'Sol', 'Fa', 'Mi', 'Re'];
+        
+        /**
+         * Maneja el clic en el botón de inicio/parada.
+         */
+        toggleButton.addEventListener('click', async () => {
+            // Si es la primera vez que se pulsa, inicializa todo
+            if (!isInitialized) {
+                await init();
+                return;
+            }
+
+            // Si ya está inicializado, simplemente cambia el estado de detección
+            isDetecting = !isDetecting;
+            
+            if (isDetecting) {
+                // Reanuda la detección
+                toggleButton.textContent = 'Detener';
+                toggleButton.classList.remove('paused');
+                updateStatus('Detección reanudada.');
+                detectPose(); // Vuelve a llamar al bucle de detección
+            } else {
+                // Pausa la detección
+                toggleButton.textContent = 'Reanudar';
+                toggleButton.classList.add('paused');
+                updateStatus('Detección pausada.');
+                
+                // Asegura que la última nota se apague
+                if (currentNoteMidi !== null) {
+                    sendMIDIMessage(currentNoteMidi, 0, 0x80); // Note Off
+                    currentNoteMidi = null;
+                    updateVisuals(null);
+                }
+            }
+        });
+
         async function initMIDI() {
+            if (!navigator.requestMIDIAccess) {
+                 updateStatus('Error: El navegador no soporta Web MIDI API.');
+                 throw new Error('Web MIDI API no soportada.');
+            }
             try {
                 midiAccess = await navigator.requestMIDIAccess();
                 const outputs = Array.from(midiAccess.outputs.values());
                 if (outputs.length > 0) {
                     midiOutput = outputs[0];
-                    updateStatus('MIDI listo y modelo cargado. Detectando nariz...');
+                    console.log(`Conectado a la salida MIDI: ${midiOutput.name}`);
                 } else {
-                    throw new Error('No se encontró salida MIDI.');
+                    throw new Error('No se encontró ninguna salida MIDI.');
                 }
             } catch (error) {
-                updateStatus(`Error MIDI: ${error.message}`);
+                updateStatus(`Error MIDI: ${error.message}. Asegúrate de tener un dispositivo MIDI conectado.`);
+                console.error("Error MIDI:", error);
+                throw error;
             }
         }
 
@@ -115,43 +282,25 @@
             }
         }
 
-        function playNoteMidi(noteNumber) {
-            if (currentNote !== noteNumber) {
-                stopNoteMidi(currentNote);
-                sendMIDIMessage(noteNumber, 127, 0x90); // Note on
-                updateNoteOutput(`Nota: ${Object.keys(notes).find(key => notes[key] === noteNumber)}`);
-                currentNote = noteNumber;
-                updateSectionColors(noteNumber);
-            }
-        }
+        function updateVisuals(activeMidiNote) {
+            let activeNoteName = activeMidiNote !== null ? noteNameByMidi[activeMidiNote] : null;
+            updateNoteOutput(activeNoteName ? `Nota: ${activeNoteName}` : 'Nota: Ninguna');
 
-        function stopNoteMidi(noteNumber) {
-            if (noteNumber !== null) {
-                sendMIDIMessage(noteNumber, 0, 0x80); // Note off
-                updateNoteOutput('Nota: Ninguna');
-                currentNote = null;
-                updateSectionColors(null);
+            for (const name in sectionElements) {
+                sectionElements[name].classList.toggle('active', name === activeNoteName);
             }
-        }
-
-        function updateSectionColors(activeNote) {
-            sections.forEach(section => {
-                const sectionElement = document.getElementById(section);
-                sectionElement.style.backgroundColor = section === `${activeNote}Section` 
-                    ? 'rgba(0, 0, 0, 0.1)' 
-                    : 'transparent';
-            });
         }
 
         async function setupCamera() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
                 video.srcObject = stream;
                 return new Promise((resolve) => {
                     video.onloadedmetadata = () => resolve(video);
                 });
             } catch (error) {
-                updateStatus(`Error de cámara: ${error.message}`);
+                updateStatus(`Error de cámara: ${error.message}. Asegúrate de dar permiso.`);
+                console.error("Error de cámara:", error);
                 throw error;
             }
         }
@@ -164,75 +313,75 @@
                     inputResolution: { width: 640, height: 480 },
                     multiplier: 0.75
                 });
-                updateStatus('Modelo cargado. Detectando nariz...');
             } catch (error) {
-                updateStatus(`Error de modelo: ${error.message}`);
+                updateStatus(`Error al cargar el modelo de IA: ${error.message}`);
+                console.error("Error de modelo:", error);
                 throw error;
             }
         }
-
+        
         async function detectPose() {
+            // Si la detección está pausada, el bucle se detiene aquí.
             if (!isDetecting) return;
-            
-            const pose = await model.estimateSinglePose(video, {
-                flipHorizontal: false
-            });
-            
-            updateDebugOutput(JSON.stringify(pose, null, 2));
 
-            if (pose.score > 0.3) {  // Reducido el umbral de confianza general
-                const nose = pose.keypoints.find(point => point.part === 'nose');
-                if (nose && nose.score > 0.3) {  // Reducido el umbral de confianza para la nariz
-                    const y = nose.position.y;
-                    const section = Math.floor((y / video.height) * 5);
-                    const noteName = Object.keys(notes)[section];
-                    const midiNote = notes[noteName];
-                    updateOutput(`Nariz detectada en sección: ${noteName} (Confianza: ${nose.score.toFixed(2)})`);
-                    playNoteMidi(midiNote);
-                } else {
-                    handleNoseNotDetected(nose ? nose.score : 0);
-                }
+            const pose = await model.estimateSinglePose(video, { flipHorizontal: true });
+            const nose = pose.keypoints.find(point => point.part === 'nose' && point.score > 0.5);
+            let detectedMidiNote = null;
+
+            if (nose) {
+                const y = nose.position.y;
+                const sectionIndex = Math.min(noteOrder.length - 1, Math.max(0, Math.floor((y / video.height) * noteOrder.length)));
+                const noteName = noteOrder[sectionIndex];
+                detectedMidiNote = notes[noteName];
+                updateOutput(`Posición: ${noteName} (Confianza: ${nose.score.toFixed(2)})`);
             } else {
-                handleNoseNotDetected(pose.score);
+                updateOutput(`Buscando nariz...`);
+            }
+            
+            if (detectedMidiNote !== currentNoteMidi) {
+                if (currentNoteMidi !== null) {
+                    sendMIDIMessage(currentNoteMidi, 0, 0x80); // Note Off
+                }
+                if (detectedMidiNote !== null) {
+                    sendMIDIMessage(detectedMidiNote, 127, 0x90); // Note On
+                }
+                currentNoteMidi = detectedMidiNote;
+                updateVisuals(currentNoteMidi);
             }
 
+            // Llama a la siguiente iteración del bucle
             requestAnimationFrame(detectPose);
         }
 
-        function handleNoseNotDetected(score) {
-            updateOutput(`Nariz no detectada claramente (Confianza: ${score.toFixed(2)})`);
-            stopNoteMidi(currentNote);
-        }
+        function updateStatus(message) { status.textContent = message; }
+        function updateOutput(message) { output.textContent = message; }
+        function updateNoteOutput(message) { noteOutput.textContent = message; }
 
-        function updateStatus(message) {
-            status.textContent = message;
-        }
-
-        function updateOutput(message) {
-            output.textContent = message;
-        }
-
-        function updateNoteOutput(message) {
-            noteOutput.textContent = message;
-        }
-
-        function updateDebugOutput(message) {
-            debugOutput.innerHTML = `<pre>${message}</pre>`;
-        }
-
+        /**
+         * Función de inicialización principal, ahora llamada desde el botón.
+         */
         async function init() {
+            updateStatus('Inicializando, por favor espera...');
+            toggleButton.disabled = true; // Deshabilita el botón mientras carga
             try {
                 await setupCamera();
                 await loadModel();
                 await initMIDI();
+                
+                isInitialized = true;
                 isDetecting = true;
-                detectPose();
+                toggleButton.textContent = 'Detener';
+                toggleButton.classList.remove('paused');
+                toggleButton.disabled = false;
+                updateStatus('¡Listo! Mueve la nariz para generar música.');
+                detectPose(); // Inicia el bucle de detección
             } catch (error) {
                 updateStatus(`Error de inicialización: ${error.message}`);
+                toggleButton.textContent = 'Reintentar Inicialización';
+                toggleButton.disabled = false;
+                console.error("Error de inicialización:", error);
             }
         }
-
-        init();
     </script>
 </body>
 </html>
